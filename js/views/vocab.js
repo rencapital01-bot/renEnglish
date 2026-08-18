@@ -33,11 +33,17 @@ function shuffle(arr) {
   return a;
 }
 
+function escapeAttr(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
 function render(container, ctx) {
   const { state } = ctx;
   const queue = buildQueue(state);
   let idx = 0;
   let revealed = false;
+  let answerVisible = true; // only meaningful once revealed; toggled by the small hide/show link
+  let inputVisible = true; // whether the typing box itself is shown; persists across cards in this session
   let sessionDone = 0;
   let typedAnswer = "";
 
@@ -70,16 +76,26 @@ function render(container, ctx) {
         <div class="meta">${w.pos}</div>
         <div class="word">${w.en}</div>
         <div class="kana">${w.kana}</div>
+        <div style="margin-top:10px;">
+          <button id="toggleInput" style="background:none; border:none; color:var(--text-dim); font-size:12px; text-decoration:underline; cursor:pointer; padding:2px;">${
+            inputVisible ? "入力欄を隠す" : "入力欄を表示する"
+          }</button>
+        </div>
+        ${inputVisible ? `<input type="text" id="answerInput" value="${escapeAttr(typedAnswer)}" placeholder="意味や単語を入力して練習(任意)" style="max-width:320px; margin:8px auto 0; display:block;">` : ""}
         ${
           revealed
-            ? `<div class="muted" style="margin-top:6px;">あなたの回答: ${typedAnswer ? typedAnswer : "(未入力)"}</div>
-               <div class="answer">${w.ja}</div>
-               <div class="muted" style="margin-top:14px;">${w.example}</div>`
-            : `<input type="text" id="answerInput" placeholder="意味を日本語で入力(任意)" style="max-width:320px; margin:16px auto 0; display:block;">`
-        }
-        ${
-          revealed
-            ? `<div class="srs-buttons">
+            ? `<div style="margin-top:10px;">
+                 <button id="toggleAnswer" style="background:none; border:none; color:var(--text-dim); font-size:12px; text-decoration:underline; cursor:pointer; padding:2px;">${
+                   answerVisible ? "答えを隠す" : "答えを表示する"
+                 }</button>
+               </div>
+               ${
+                 answerVisible
+                   ? `<div class="answer" style="margin-top:4px;">${w.ja}</div>
+                      <div class="muted" style="margin-top:14px;">${w.example}</div>`
+                   : `<div style="min-height:14px;"></div>`
+               }
+               <div class="srs-buttons">
                  <button class="again" data-q="2">もう一度<br><span style="font-size:11px;opacity:.8">Again</span></button>
                  <button class="good" data-q="4">できた<br><span style="font-size:11px;opacity:.8">Good</span></button>
                  <button class="easy" data-q="5">簡単<br><span style="font-size:11px;opacity:.8">Easy</span></button>
@@ -87,10 +103,27 @@ function render(container, ctx) {
             : `<button class="primary" data-action="reveal" style="margin-top:20px;">答えを見る</button>`
         }
       </div>
-      <p class="disclaimer">正解を見る前に、上の欄に意味を入力してから確認すると記憶に残りやすくなります(アクティブリコール)。「もう一度」を選んだ単語は、この後のセッション内でもう一度出題されます。</p>
+      <p class="disclaimer">正解を見る前に、上の欄に意味を入力してみましょう。答えを見た後も入力欄には書き込めるので、隠してもう一度書く練習にも使えます(アクティブリコール)。「もう一度」を選んだ単語は、この後のセッション内でもう一度出題されます。</p>
     `;
 
+    const input = container.querySelector("#answerInput");
+    if (input) {
+      input.addEventListener("input", () => {
+        typedAnswer = input.value;
+      });
+    }
+
+    container.querySelector("#toggleInput").addEventListener("click", () => {
+      inputVisible = !inputVisible;
+      draw();
+    });
+
     if (revealed) {
+      container.querySelector("#toggleAnswer").addEventListener("click", () => {
+        answerVisible = !answerVisible;
+        draw();
+        container.querySelector("#answerInput")?.focus();
+      });
       container.querySelectorAll("[data-q]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const quality = Number(btn.dataset.q);
@@ -108,16 +141,13 @@ function render(container, ctx) {
 
           idx++;
           revealed = false;
+          answerVisible = true;
           typedAnswer = "";
           draw();
         });
       });
     } else {
-      const input = container.querySelector("#answerInput");
-      input.addEventListener("input", () => {
-        typedAnswer = input.value;
-      });
-      input.addEventListener("keydown", (e) => {
+      input?.addEventListener("keydown", (e) => {
         if (e.key === "Enter") container.querySelector("[data-action='reveal']").click();
       });
       container.querySelector("[data-action='reveal']").addEventListener("click", () => {
