@@ -1,6 +1,7 @@
-import { WEEKDAY_LABELS, toHHMM, generateTimetable, toggleDone, computeCompletionWeights, dayOfWeek } from "../timetable.js";
+import { WEEKDAY_LABELS, generateTimetable, computeCompletionWeights, dayOfWeek } from "../timetable.js";
 import { BLOCK_LABELS } from "../schedule.js";
 import { save, todayISO } from "../storage.js";
+import { timetableListHTML, wireTimetableCheckboxes } from "./timetableRender.js";
 
 function uid() {
   return "e" + Math.random().toString(36).slice(2, 9);
@@ -77,26 +78,7 @@ function render(container, ctx) {
 
       <div class="card">
         <h3>今日の時間割 (${today})</h3>
-        ${
-          result.outOfRange
-            ? `<p class="muted">学習期間の範囲外です。</p>`
-            : result.blocks.length === 0
-              ? `<p class="muted">空き時間が見つかりませんでした。学習可能時間帯や固定予定を見直してください。</p>`
-              : result.blocks
-                  .map((b) => {
-                    if (b.fixed) {
-                      return `<div class="day-block"><span class="tag">${toHHMM(b.start)}-${toHHMM(b.end)}</span> <span class="muted">${b.label}(固定)</span></div>`;
-                    }
-                    return `<div class="day-block">
-                      <label style="display:flex; align-items:center; gap:10px; cursor:pointer; width:100%;">
-                        <input type="checkbox" data-toggle="${b.start}|${b.type}" ${b.done ? "checked" : ""}>
-                        <span class="tag">${toHHMM(b.start)}-${toHHMM(b.end)}</span>
-                        <span style="${b.done ? "text-decoration:line-through;opacity:.6;" : ""}">${b.label} (${b.minutes}分)</span>
-                      </label>
-                    </div>`;
-                  })
-                  .join("")
-        }
+        ${timetableListHTML(result)}
         ${
           worst
             ? `<p class="disclaimer">直近2週間の記録では「${BLOCK_LABELS[worst[0]] || worst[0]}」の実行率が低めです。今後の時間割ではこの分野の配分をやや減らし、他の分野に回しています。時間帯を変えてみるのも効果的です。</p>`
@@ -141,13 +123,7 @@ function render(container, ctx) {
       draw();
     });
 
-    container.querySelectorAll("[data-toggle]").forEach((cb) => {
-      cb.addEventListener("change", () => {
-        const [start, type] = cb.dataset.toggle.split("|");
-        toggleDone(state, today, Number(start), type);
-        draw();
-      });
-    });
+    wireTimetableCheckboxes(container, state, today, draw);
   }
 
   draw();

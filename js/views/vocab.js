@@ -1,17 +1,27 @@
 import { WORDS } from "../data/words.js";
-import { newCard, review, dueCards, isDue } from "../srs.js";
+import { newCard, review, dueCards } from "../srs.js";
 import { save, logMinutes } from "../storage.js";
 
-const NEW_WORDS_PER_SESSION = 20;
+const NEW_WORDS_PER_SESSION = 10;
+const REQUEUE_OFFSET = 4; // how many cards later a missed word resurfaces in the same session
 const wordById = Object.fromEntries(WORDS.map((w) => [w.id, w]));
 
 function buildQueue(state) {
   const allIds = WORDS.map((w) => w.id);
   const due = dueCards(state.vocab, allIds).filter((id) => state.vocab[id]); // already-seen cards that are due
+
+  // Words marked "Again" last time are weak spots -- surface them first,
+  // ahead of other due reviews and ahead of new words, per the user's ask
+  // to have missed words prioritized rather than just cycled in normally.
+  const weak = due.filter((id) => state.vocab[id].lastResult === "again");
+  const otherDue = due.filter((id) => state.vocab[id].lastResult !== "again");
+
   const notSeen = allIds.filter((id) => !state.vocab[id]);
   const newBatch = notSeen.slice(0, NEW_WORDS_PER_SESSION);
-  // Interleave: review due cards mixed with a few new ones rather than all-new-then-all-review.
-  return shuffle([...due, ...newBatch]);
+
+  // Weak words go in front (still shuffled among themselves so it's not
+  // always the exact same order); the rest interleaves review + new cards.
+  return [...shuffle(weak), ...shuffle([...otherDue, ...newBatch])];
 }
 
 function shuffle(arr) {
@@ -29,6 +39,7 @@ function render(container, ctx) {
   let idx = 0;
   let revealed = false;
   let sessionDone = 0;
+  let typedAnswer = "";
 
   function currentWord() {
     return wordById[queue[idx]];
@@ -49,15 +60,23 @@ function render(container, ctx) {
 
     const w = currentWord();
     const isNew = !state.vocab[w.id];
+    const isWeak = !isNew && state.vocab[w.id].lastResult === "again";
 
     container.innerHTML = `
-      <h2>単語学習(間隔反復) <span class="tag">残り ${queue.length - idx}枚</span> ${isNew ? '<span class="tag warn">新出</span>' : '<span class="tag good">復習</span>'}</h2>
+      <h2>単語学習(間隔反復) <span class="tag">残り ${queue.length - idx}枚</span> ${
+        isWeak ? '<span class="tag bad">苦手</span>' : isNew ? '<span class="tag warn">新出</span>' : '<span class="tag good">復習</span>'
+      }</h2>
       <div class="card flashcard">
         <div class="meta">${w.pos}</div>
         <div class="word">${w.en}</div>
         <div class="kana">${w.kana}</div>
-        <div class="answer">${revealed ? w.ja : "&nbsp;"}</div>
-        <div class="muted" style="margin-top:14px;">${revealed ? w.example : ""}</div>
+        ${
+          revealed
+            ? `<div class="muted" style="margin-top:6px;">あなたの回答: ${typedAnswer ? typedAnswer : "(未入力)"}</div>
+               <div class="answer">${w.ja}</div>
+               <div class="muted" style="margin-top:14px;">${w.example}</div>`
+            : `<input type="text" id="answerInput" placeholder="意味を日本語で入力(任意)" style="max-width:320px; margin:16px auto 0; display:block;">`
+        }
         ${
           revealed
             ? `<div class="srs-buttons">
@@ -68,7 +87,7 @@ function render(container, ctx) {
             : `<button class="primary" data-action="reveal" style="margin-top:20px;">答えを見る</button>`
         }
       </div>
-      <p class="disclaimer">意味を声に出す・紙に書くなど、見る前に自分で思い出そうとする(アクティブリコール)ことが記憶定着に最も効果的です。</p>
+      <p class="disclaimer">正解を見る前に、上の欄に意味を入力してから確認すると記憶に残りやすくなります(アクティブリコール)。「もう一度」を選んだ単語は、この後のセッション内でもう一度出題されます。</p>
     `;
 
     if (revealed) {
@@ -79,12 +98,28 @@ function render(container, ctx) {
           state.vocab[w.id] = review(prev, quality);
           save(state);
           sessionDone++;
+
+          if (quality < 3) {
+            // Missed it -- resurface this word again later in the same
+            // session instead of only relying on tomorrow's SRS due date.
+            const reinsertAt = Math.min(queue.length, idx + 1 + REQUEUE_OFFSET);
+            queue.splice(reinsertAt, 0, w.id);
+          }
+
           idx++;
           revealed = false;
+          typedAnswer = "";
           draw();
         });
       });
     } else {
+      const input = container.querySelector("#answerInput");
+      input.addEventListener("input", () => {
+        typedAnswer = input.value;
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") container.querySelector("[data-action='reveal']").click();
+      });
       container.querySelector("[data-action='reveal']").addEventListener("click", () => {
         revealed = true;
         draw();

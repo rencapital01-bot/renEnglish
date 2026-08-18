@@ -12,6 +12,7 @@ import { blocksForDayIndex, planPosition } from "./schedule.js";
 import { save, todayISO } from "./storage.js";
 
 const MIN_CHUNK_MINUTES = 10;
+const BREAK_MINUTES = 10;
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
 function toMinutes(hhmm) {
@@ -71,7 +72,7 @@ function computeCompletionWeights(state) {
     const t = new Date(dateISO + "T00:00:00").getTime();
     if (t < cutoff) continue;
     for (const b of log.blocks || []) {
-      if (b.type === "mock_exam" || b.fixed) continue;
+      if (b.type === "mock_exam" || b.fixed || b.isBreak) continue;
       if (!counts[b.type]) counts[b.type] = { planned: 0, done: 0 };
       counts[b.type].planned++;
       if (b.done) counts[b.type].done++;
@@ -138,6 +139,15 @@ function packBlocksIntoGaps(gaps, blocks) {
       cursor += take;
       item.remaining -= take;
       if (item.remaining <= 0) qi++;
+
+      // A short break before the next activity -- studying different
+      // subjects back-to-back with zero pause isn't realistic or
+      // sustainable, even when the clock time is technically free.
+      const moreToSchedule = item.remaining > 0 || qi < queue.length;
+      if (moreToSchedule && cursor + BREAK_MINUTES <= gap.end) {
+        scheduled.push({ type: "break", label: "休憩", start: cursor, end: cursor + BREAK_MINUTES, minutes: BREAK_MINUTES, isBreak: true });
+        cursor += BREAK_MINUTES;
+      }
     }
   }
   return scheduled;
@@ -180,8 +190,8 @@ function generateTimetable(state, dateISO) {
   const existingLog = state.timetableLog[dateISO];
   const merged = [...fixedEvents, ...studyBlocks].sort((a, b) => a.start - b.start);
   const withDone = merged.map((b) => {
-    if (b.fixed) return b;
-    const prior = existingLog?.blocks?.find((p) => !p.fixed && p.type === b.type && p.start === b.start);
+    if (b.fixed || b.isBreak) return b;
+    const prior = existingLog?.blocks?.find((p) => !p.fixed && !p.isBreak && p.type === b.type && p.start === b.start);
     return { ...b, done: prior?.done || false };
   });
 

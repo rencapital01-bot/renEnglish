@@ -1,8 +1,10 @@
 import { computePassProbability } from "../passProbability.js";
-import { todayPlan, generateSchedule } from "../schedule.js";
+import { generateTimetable } from "../timetable.js";
 import { masteredCount, dueCards } from "../srs.js";
 import { WORDS } from "../data/words.js";
 import { SECTIONS, EXAM_DATE } from "../data/examInfo.js";
+import { todayISO } from "../storage.js";
+import { timetableListHTML, wireTimetableCheckboxes } from "./timetableRender.js";
 
 function daysUntilExam() {
   const today = new Date();
@@ -19,10 +21,12 @@ function render(container, ctx) {
   const { state } = ctx;
   const days = daysUntilExam();
   const pp = computePassProbability(state);
-  const plan = todayPlan(state);
+  const today = todayISO();
+  const timetableResult = generateTimetable(state, today);
   const wordIds = WORDS.map((w) => w.id);
   const due = dueCards(state.vocab, wordIds).length;
   const mastered = masteredCount(state.vocab);
+  const weakCount = Object.values(state.vocab).filter((c) => c.lastResult === "again").length;
 
   const pctInt = Math.round(pp.passProbability * 100);
   const barColor = pctInt >= 70 ? "var(--good)" : pctInt >= 45 ? "var(--warn)" : "var(--bad)";
@@ -59,7 +63,7 @@ function render(container, ctx) {
       </div>
     </div>
 
-    <div class="grid-3">
+    <div class="grid-4">
       <div class="card stat">
         <div class="num">${mastered}</div>
         <div class="label">単語マスター済み (全${WORDS.length}語中)</div>
@@ -69,23 +73,23 @@ function render(container, ctx) {
         <div class="label">本日復習すべき単語</div>
       </div>
       <div class="card stat">
+        <div class="num" style="${weakCount > 0 ? "color:var(--bad)" : ""}">${weakCount}</div>
+        <div class="label">苦手な単語(優先的に出題)</div>
+      </div>
+      <div class="card stat">
         <div class="num">${pp.breakdown.mockCount}</div>
         <div class="label">受験した模擬試験の回数</div>
       </div>
     </div>
 
     <div class="card">
-      <h3>今日の学習プラン (${plan ? plan.phaseLabel : "-"})</h3>
-      ${
-        plan
-          ? plan.blocks.map((b) => `<div class="day-block"><span>${b.label}</span><span>${b.minutes}分</span></div>`).join("")
-          : "<p class='muted'>本日分の予定がありません。</p>"
-      }
+      <h3>今日の時間割 (${timetableResult.phaseLabel || "-"})</h3>
+      ${timetableListHTML(timetableResult)}
       <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
         <button class="primary" data-goto="vocab">単語復習を始める (${due}件)</button>
         <button class="secondary" data-goto="practice">演習問題を解く</button>
         <button class="secondary" data-goto="mockexam">模擬試験を受ける</button>
-        <button class="secondary" data-goto="timetable">時刻付きの時間割を見る</button>
+        <button class="secondary" data-goto="timetable">固定予定を編集する</button>
       </div>
     </div>
   `;
@@ -93,6 +97,7 @@ function render(container, ctx) {
   container.querySelectorAll("[data-goto]").forEach((btn) => {
     btn.addEventListener("click", () => ctx.goto(btn.dataset.goto));
   });
+  wireTimetableCheckboxes(container, state, today, () => render(container, ctx));
 }
 
 export { render };
