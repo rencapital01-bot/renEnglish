@@ -45,16 +45,18 @@ function render(container, ctx) {
 
     <div class="card">
       <h3>分野別の状況</h3>
-      <table>
-        <thead><tr><th>分野</th><th>配点比率</th><th>正答率(直近)</th></tr></thead>
-        <tbody>
-          ${SECTIONS.map((s) => {
-            const acc = pp.breakdown.sectionAcc[s.id];
-            const accLabel = acc === null || acc === undefined ? "データなし" : Math.round(acc * 100) + "%";
-            return `<tr><td>${s.label}</td><td>${Math.round(s.weight * 100)}%</td><td>${accLabel}</td></tr>`;
-          }).join("")}
-        </tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>分野</th><th>配点比率</th><th>正答率(直近)</th></tr></thead>
+          <tbody>
+            ${SECTIONS.map((s) => {
+              const acc = pp.breakdown.sectionAcc[s.id];
+              const accLabel = acc === null || acc === undefined ? "データなし" : Math.round(acc * 100) + "%";
+              return `<tr><td>${s.label}</td><td>${Math.round(s.weight * 100)}%</td><td>${accLabel}</td></tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="grid-3">
@@ -83,6 +85,7 @@ function render(container, ctx) {
         <button class="primary" data-goto="vocab">単語復習を始める (${due}件)</button>
         <button class="secondary" data-goto="practice">演習問題を解く</button>
         <button class="secondary" data-goto="mockexam">模擬試験を受ける</button>
+        <button class="secondary" data-goto="timetable">時刻付きの時間割を見る</button>
       </div>
     </div>
   `;

@@ -4,6 +4,7 @@ import * as vocab from "./views/vocab.js";
 import * as practice from "./views/practice.js";
 import * as mockExam from "./views/mockExam.js";
 import * as scheduleView from "./views/scheduleView.js";
+import * as timetableView from "./views/timetableView.js";
 import * as settings from "./views/settings.js";
 import { EXAM_DATE } from "./data/examInfo.js";
 
@@ -12,6 +13,7 @@ const VIEWS = {
   vocab: { label: "単語(SRS)", mod: vocab },
   practice: { label: "演習問題", mod: practice },
   mockexam: { label: "模擬試験", mod: mockExam },
+  timetable: { label: "時間割", mod: timetableView },
   schedule: { label: "学習スケジュール", mod: scheduleView },
   settings: { label: "設定・バックアップ", mod: settings },
 };
@@ -19,6 +21,7 @@ const VIEWS = {
 const state = load();
 const main = document.getElementById("main");
 const sidebar = document.getElementById("sidebar");
+const navButtons = document.getElementById("nav-buttons");
 let currentView = "dashboard";
 
 function updateCountdown() {
@@ -33,9 +36,10 @@ function updateCountdown() {
 
 function goto(view) {
   currentView = view;
-  sidebar.querySelectorAll("button[data-view]").forEach((b) => {
+  navButtons.querySelectorAll("button[data-view]").forEach((b) => {
     b.classList.toggle("active", b.dataset.view === view);
   });
+  window.scrollTo(0, 0);
   const ctx = { state, save: () => save(state), goto };
   VIEWS[view].mod.render(main, ctx);
 }
@@ -46,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.dataset.view = id;
     btn.textContent = v.label;
     btn.addEventListener("click", () => goto(id));
-    sidebar.appendChild(btn);
+    navButtons.appendChild(btn);
   });
   updateCountdown();
   setInterval(updateCountdown, 60 * 60 * 1000);

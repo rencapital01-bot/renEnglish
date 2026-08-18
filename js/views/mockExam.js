@@ -157,12 +157,14 @@ function render(container, ctx) {
         </div>
         <div class="card">
           <h3>分野別</h3>
-          <table>
-            <thead><tr><th>分野</th><th>正答率</th></tr></thead>
-            <tbody>
-              ${SECTIONS.map((s) => `<tr><td>${s.label}</td><td>${sectionScores[s.id] === null ? "-" : sectionScores[s.id] + "%"}</td></tr>`).join("")}
-            </tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>分野</th><th>正答率</th></tr></thead>
+              <tbody>
+                ${SECTIONS.map((s) => `<tr><td>${s.label}</td><td>${sectionScores[s.id] === null ? "-" : sectionScores[s.id] + "%"}</td></tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
         </div>
         <button class="primary" data-goto="dashboard">ダッシュボードに戻る</button>
       `;

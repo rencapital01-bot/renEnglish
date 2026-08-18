@@ -77,6 +77,12 @@ nav.sidebar .countdown strong {
   display: block;
 }
 
+.nav-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 nav.sidebar button {
   text-align: left;
   background: transparent;
@@ -114,10 +120,68 @@ h3 { font-size: 16px; }
 
 @media (max-width: 720px) {
   #app { flex-direction: column; }
-  nav.sidebar { width: 100%; flex-direction: row; overflow-x: auto; }
+
+  nav.sidebar {
+    width: 100%;
+    flex-direction: column;
+    gap: 0;
+    padding: 14px 16px 10px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  nav.sidebar h1 { font-size: 14px; margin: 0; white-space: nowrap; }
+
+  nav.sidebar .countdown {
+    margin: 0;
+    text-align: right;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  nav.sidebar .countdown strong { font-size: 15px; display: inline; }
+
+  .nav-buttons {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    margin-top: 10px;
+    padding-bottom: 2px;
+  }
+  .nav-buttons button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 13px;
+  }
+  .nav-buttons button.active { background: var(--accent); color: white; }
+
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
-  main { padding: 16px; }
+  main { padding: 14px; }
+  .card { padding: 14px 16px; }
+  .flashcard { padding: 32px 12px; }
+  .flashcard .word { font-size: 26px; }
+  .srs-buttons button { font-size: 13px; padding: 10px 6px; }
 }
+
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll table { min-width: 480px; }
 
 .stat {
   text-align: center;
@@ -176,7 +240,9 @@ button.secondary {
   cursor: pointer;
 }
 
-input[type="text"], select {
+label { display: block; margin-bottom: 4px; }
+
+input[type="text"], input[type="time"], select {
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -193,6 +259,12 @@ input[type="text"], select {
 .flashcard .word {
   font-size: 34px;
   font-weight: 700;
+  margin-bottom: 4px;
+}
+.flashcard .kana {
+  font-size: 15px;
+  color: var(--accent);
+  letter-spacing: 0.02em;
   margin-bottom: 8px;
 }
 .flashcard .meta {

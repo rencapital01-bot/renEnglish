@@ -67,6 +67,35 @@ function isWeekend(date) {
   return d === 0 || d === 6;
 }
 
+// Given a date's position in the overall plan and how many study minutes are
+// actually available that day, return the block-type breakdown. Pulled out
+// of generateSchedule() so timetable.js can drive it off real free time
+// (computed from the user's fixed weekly commitments) instead of the flat
+// weekdayHours/weekendHours profile setting.
+//
+// `weightMultipliers` (optional, {type: number}) lets the adaptive layer in
+// timetable.js nudge allocations based on which block types actually get
+// completed historically — see timetable.js's computeCompletionWeights().
+function blocksForDayIndex(dayIndex, totalDays, totalMinutes, weightMultipliers) {
+  const phases = { totalDays, foundationEnd: Math.round(totalDays * 0.4), buildEnd: Math.round(totalDays * 0.8) };
+  const phase = phaseFor(dayIndex, phases);
+  const mockDay = phase === "final" ? dayIndex % 3 === 0 : phase === "build" ? dayIndex % 5 === 0 : false;
+  const baseMix = mockDay ? MOCK_DAY_MIX : PHASE_MIX[phase];
+
+  let mix = baseMix;
+  if (weightMultipliers) {
+    const adjusted = Object.fromEntries(Object.entries(baseMix).map(([type, ratio]) => [type, ratio * (weightMultipliers[type] ?? 1)]));
+    const sum = Object.values(adjusted).reduce((a, b) => a + b, 0) || 1;
+    mix = Object.fromEntries(Object.entries(adjusted).map(([type, v]) => [type, v / sum]));
+  }
+
+  const blocks = Object.entries(mix)
+    .map(([type, ratio]) => ({ type, label: BLOCK_LABELS[type], minutes: Math.round(totalMinutes * ratio) }))
+    .filter((b) => b.minutes > 0);
+
+  return { phase, phaseLabel: PHASE_LABELS[phase], mockDay, blocks };
+}
+
 function generateSchedule(state) {
   const startISO = state.profile.startDate || todayISO();
   const examISO = state.profile.examDate;
@@ -80,27 +109,13 @@ function generateSchedule(state) {
     const weekend = isWeekend(dateObj);
     const hours = weekend ? weekendHours : weekdayHours;
     const totalMinutes = Math.round(hours * 60);
-    const phase = phaseFor(i, phases);
-
-    // Mock exams land on a fixed rhythm rather than every day even in the
-    // final phase — a mock exam every single day burns out fast and stops
-    // producing new signal.
-    const mockDay = phase === "final" ? i % 3 === 0 : phase === "build" ? i % 5 === 0 : false;
-    const mix = mockDay ? MOCK_DAY_MIX : PHASE_MIX[phase];
-
-    const blocks = Object.entries(mix)
-      .map(([type, ratio]) => ({
-        type,
-        label: BLOCK_LABELS[type],
-        minutes: Math.round(totalMinutes * ratio),
-      }))
-      .filter((b) => b.minutes > 0);
+    const { phase, phaseLabel, mockDay, blocks } = blocksForDayIndex(i, phases.totalDays, totalMinutes);
 
     days.push({
       date: dateISO,
       isWeekend: weekend,
       phase,
-      phaseLabel: PHASE_LABELS[phase],
+      phaseLabel,
       totalMinutes,
       blocks,
       isMockDay: mockDay,
@@ -116,4 +131,16 @@ function todayPlan(state) {
   return schedule.find((d) => d.date === today) || null;
 }
 
-export { generateSchedule, todayPlan, PHASE_LABELS, BLOCK_LABELS };
+// Day index (0 = startDate) and total plan length for an arbitrary date,
+// used by timetable.js to call blocksForDayIndex() with real free minutes.
+function planPosition(state, dateISO) {
+  const startISO = state.profile.startDate || todayISO();
+  const examISO = state.profile.examDate;
+  const { totalDays } = buildPhases(startISO, examISO);
+  const start = new Date(startISO + "T00:00:00");
+  const d = new Date(dateISO + "T00:00:00");
+  const dayIndex = Math.round((d - start) / 86400000);
+  return { dayIndex, totalDays };
+}
+
+export { generateSchedule, todayPlan, blocksForDayIndex, planPosition, PHASE_LABELS, BLOCK_LABELS };

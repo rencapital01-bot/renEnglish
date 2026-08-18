@@ -12,6 +12,8 @@ function defaultState() {
       weekendHours: 5,
       diagnosticDone: false,
       diagnosticResult: null, // { vocabPct, grammarPct, readingPct, level }
+      dayStart: "06:30", // earliest time study can be scheduled
+      dayEnd: "23:30", // latest time study can be scheduled
     },
     vocab: {}, // wordId -> { ef, interval, reps, due, lastResult, history: [] }
     vocabIntroduced: [], // ordered list of wordIds already shown at least once
@@ -19,6 +21,15 @@ function defaultState() {
     mockExams: [], // { ts, sectionScores: {vocab,grammar,reading,writing}, totalPct }
     studyLog: {}, // "YYYY-MM-DD" -> minutesStudied
     scheduleAdjustments: {}, // "YYYY-MM-DD" -> { skipped: bool, note: string }
+    // fixedSchedule[0..6] (0=Sun...6=Sat) -> [{ id, label, start:"HH:MM", end:"HH:MM" }]
+    // A recurring weekly template of commitments (school, part-time job, sleep, etc.)
+    // that study blocks must be scheduled around.
+    fixedSchedule: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+    // timetableLog["YYYY-MM-DD"] -> { blocks: [{ type, label, start, end, minutes, done }] }
+    // The concrete, clock-time timetable actually generated/shown for a given day,
+    // plus whether each block was marked done. This is the history the adaptive
+    // weighting in timetable.js reads from.
+    timetableLog: {},
   };
 }
 

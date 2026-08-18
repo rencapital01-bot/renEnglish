@@ -55,6 +55,7 @@ function render(container, ctx) {
       <div class="card flashcard">
         <div class="meta">${w.pos}</div>
         <div class="word">${w.en}</div>
+        <div class="kana">${w.kana}</div>
         <div class="answer">${revealed ? w.ja : "&nbsp;"}</div>
         <div class="muted" style="margin-top:14px;">${revealed ? w.example : ""}</div>
         ${
